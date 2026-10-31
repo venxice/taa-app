@@ -12,6 +12,7 @@ RUN npm ci
 COPY prisma ./prisma
 RUN npx prisma generate
 
+COPY scripts ./scripts
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
@@ -20,4 +21,4 @@ ENV NODE_ENV=production
 ENV PORT=80
 EXPOSE 80
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "start:production"]

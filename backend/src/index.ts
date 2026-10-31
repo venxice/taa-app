@@ -17,6 +17,9 @@ import routes from './routes';
 const app = express();
 
 // ---------- Global Middlewares ----------
+// Vercel forwards requests through one trusted proxy. This lets rate limiting
+// use the real client IP instead of treating every resident as the same IP.
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
