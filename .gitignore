@@ -1,0 +1,20 @@
+# Local environment files (keep safe templates in Git).
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Dependencies and generated output.
+node_modules/
+**/node_modules/
+frontend/.next/
+frontend/.next-*/
+frontend/tsconfig.tsbuildinfo
+backend/dist/
+backend/uploads/
+
+# Local deployment and tool output.
+.vercel/
+**/.vercel/
+*.log
+.DS_Store

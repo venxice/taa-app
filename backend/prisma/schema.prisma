@@ -1,0 +1,294 @@
+// ============================================================
+// TAA-App Database Schema (Prisma + MySQL-compatible TiDB)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  resident
+  hoa_officer
+  admin
+}
+
+enum UserStatus {
+  pending
+  verified
+  rejected
+  suspended
+  disabled
+}
+
+enum IncidentStatus {
+  pending
+  investigating
+  resolved
+  rejected
+}
+
+enum PaymentStatus {
+  pending
+  confirmed
+  rejected
+  overdue
+}
+
+enum FinanceEntryType {
+  income
+  expense
+}
+
+model User {
+  id        String     @id @default(uuid())
+  firstName String
+  middleName String?   @default("")
+  lastName  String
+  email     String?    @unique
+  username  String     @unique
+  password  String
+  role      UserRole   @default(resident)
+  status    UserStatus @default(pending)
+  tokenVersion Int     @default(0)
+  phone     String?    @default("")
+  avatar    String?    @default("")
+  avatarPath String?   @default("")
+
+  verifiedById    String?
+  verifiedBy      User?     @relation("UserVerified", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  rejectionReason String?   @db.Text
+
+  resident          Resident?
+  announcements     Announcement[]
+  incidentsReported Incident[]     @relation("ReportedBy")
+  incidentsHandled  Incident[]     @relation("HandledBy")
+  paymentsVerified  Payment[]      @relation("VerifiedBy")
+  financeEntries    FinanceEntry[] @relation("FinanceRecordedBy")
+  auditLogs         AuditLog[]
+  officialsCreated  Official[]
+  usersVerified     User[]         @relation("UserVerified")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([status])
+}
+
+model Resident {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  residenceId String? @unique
+
+  birthDate    DateTime?
+  birthPlace   String?  @default("")
+  age          Int?
+  gender       String?  @default("")
+  civilStatus  String?  @default("")
+  religion     String?  @default("")
+  nationality  String?  @default("")
+  alias        String?  @default("")
+
+  email        String?  @default("")
+  phone        String?  @default("")
+  houseNumber  String?  @default("")
+  street       String?  @default("")
+  purok        String?  @default("")
+  barangay     String?  @default("")
+  municipality String?  @default("")
+  zipCode      String?  @default("")
+  address      String?  @db.Text
+
+  householdRole String? @default("")
+  householdSize Int?
+
+  fatherName    String? @default("")
+  motherName    String? @default("")
+  guardian      String? @default("")
+  guardianPhone String? @default("")
+
+  occupation   String? @default("")
+  employerName String? @default("")
+  bloodType    String? @default("")
+
+  isSenior       Boolean @default(false)
+  isPWD          Boolean @default(false)
+  pwdInfo        String? @default("")
+  isSingleParent Boolean @default(false)
+  isVoter        Boolean @default(false)
+  is4Ps          Boolean @default(false)
+  isWRA          Boolean @default(false)
+
+  emergencyContactName     String? @default("")
+  emergencyContactPhone    String? @default("")
+  emergencyContactRelation String? @default("")
+
+  avatar     String? @default("")
+  avatarPath String? @default("")
+
+  payments  Payment[]
+  incidents Incident[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id          String  @id @default(uuid())
+  title       String
+  content     String  @db.Text
+  isPublished Boolean @default(false)
+  isPinned    Boolean @default(false)
+  imageUrl    String?
+  authorId    String
+  author      User    @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([isPinned])
+}
+
+model Incident {
+  id           String   @id @default(uuid())
+  incidentType String
+  title        String
+  description  String   @db.Text
+  location     String   @db.Text
+  dateIncident DateTime
+  dateReported DateTime @default(now())
+
+  reportedById String?
+  reportedBy   User?     @relation("ReportedBy", fields: [reportedById], references: [id])
+  residentId   String?
+  resident     Resident? @relation(fields: [residentId], references: [id])
+
+  complainantName    String? @default("")
+  complainantContact String? @default("")
+  respondentName     String? @default("")
+  involvedPerson     String? @default("")
+
+  status      IncidentStatus @default(pending)
+  remarks     String?        @db.Text
+  actionTaken String?        @db.Text
+  resolvedAt  DateTime?
+  handledById String?
+  handledBy   User?          @relation("HandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  residentId String
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String        @db.Text
+  amount      Decimal       @db.Decimal(10, 2)
+  dueDate     DateTime
+  paymentDate DateTime?
+  status      PaymentStatus @default(pending)
+
+  receiptNumber      String? @unique
+  proofOfPayment     String? @default("")
+  proofOfPaymentPath String? @default("")
+
+  verifiedById    String?
+  verifiedBy      User?     @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  rejectionReason String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Retain every submitted reference so a rejected/resubmitted number cannot
+// later be reused against a different due. Intentionally no FK: history must
+// survive deletion of an unpaid payment record.
+model PaymentReference {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  paymentId   String
+  submittedAt DateTime @default(now())
+
+  @@index([paymentId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  entity    String
+  entityId  String?
+  action    String
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+}
+
+model FinanceEntry {
+  id          String          @id @default(uuid())
+  type        FinanceEntryType
+  category    String
+  source      String?
+  description String          @db.Text
+  amount      Decimal         @db.Decimal(10, 2)
+  entryDate   DateTime
+  recordedById String
+  recordedBy  User            @relation("FinanceRecordedBy", fields: [recordedById], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([type, entryDate])
+}
+
+model FinanceSetting {
+  id            String   @id @default("global")
+  duesSuspended Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model Official {
+  id            String @id @default(uuid())
+  firstName     String
+  middleName    String? @default("")
+  lastName      String
+  suffix        String? @default("")
+  position      String
+  positionOrder Int     @default(0)
+
+  termFrom DateTime?
+  termTo   DateTime?
+  isActive Boolean   @default(true)
+
+  birthDate     DateTime?
+  gender        String?  @default("")
+  contactNumber String?  @default("")
+  email         String?  @default("")
+  address       String?  @db.Text
+  avatar        String?  @default("")
+  avatarPath    String?  @default("")
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
