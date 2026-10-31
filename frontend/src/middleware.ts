@@ -8,11 +8,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes that don't need auth
   const publicRoutes = ['/', '/login', '/register'];
-  if (publicRoutes.includes(pathname)) {
-    return NextResponse.next();
-  }
+  if (publicRoutes.includes(pathname)) return NextResponse.next();
 
   const protectedPrefixes = ['/dashboard', '/admin', '/hoa', '/resident'];
   const isProtected = protectedPrefixes.some(
@@ -29,5 +26,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Vercel Services do not support Edge middleware; Next.js 15.5 supports
+  // Node.js middleware, which keeps this route guard enabled for this deploy.
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
 };
