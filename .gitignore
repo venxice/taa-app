@@ -18,3 +18,8 @@ backend/uploads/
 **/.vercel/
 *.log
 .DS_Store
+
+# Python / office temp files from document generation.
+__pycache__/
+*.py[cod]
+~$*
