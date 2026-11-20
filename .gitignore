@@ -23,3 +23,6 @@ backend/uploads/
 __pycache__/
 *.py[cod]
 ~$*
+
+# Local documents (not part of the app).
+docs/
